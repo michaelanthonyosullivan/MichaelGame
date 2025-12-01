@@ -239,11 +239,6 @@ export default function QuantitativeNumberGame() {
             {target}
           </div>
 
-          <p className="text-sm text-gray-500">
-            Taps so far:{' '}
-            <span className="font-semibold text-gray-800">{tapCount}</span>
-          </p>
-
           <div aria-hidden="true" className="flex items-center justify-center gap-3 mt-1">
             {Array.from({ length: target }).map((_, i) => {
               const filled = i < Math.min(tapCount, target);
