@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
 
 type GameStatus = 'playing' | 'success' | 'too-many';
@@ -135,12 +135,60 @@ function playCelebrationSound() {
   });
 }
 
+function playPopSound() {
+  if (typeof window === 'undefined') return;
+
+  const AudioCtx =
+    (window as any).AudioContext || (window as any).webkitAudioContext;
+  if (!AudioCtx) return;
+
+  const ctx = new AudioCtx();
+  const now = ctx.currentTime;
+
+  // Create a quick pop sound: short burst of noise with quick decay
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const noiseFilter = ctx.createBiquadFilter();
+
+  // Use a triangle wave with a quick frequency sweep for a "pop" effect
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(800, now);
+  osc.frequency.exponentialRampToValueAtTime(400, now + 0.08);
+
+  noiseFilter.type = 'lowpass';
+  noiseFilter.frequency.setValueAtTime(2000, now);
+
+  gain.gain.setValueAtTime(0.3, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+
+  osc.connect(noiseFilter);
+  noiseFilter.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.start(now);
+  osc.stop(now + 0.1);
+}
+
 export default function QuantitativeNumberGame() {
-  const [target, setTarget] = useState<number>(() => getRandomTarget());
+  const [target, setTarget] = useState<number>(1);
   const [tapCount, setTapCount] = useState(0);
   const [status, setStatus] = useState<GameStatus>('playing');
   const [confettiPieces, setConfettiPieces] = useState<ConfettiPiece[]>([]);
   const [balloons, setBalloons] = useState<BalloonSpec[]>([]);
+  const prevTapCountRef = useRef<number>(0);
+
+  // Initialize target on mount
+  useEffect(() => {
+    setTarget(getRandomTarget());
+  }, []);
+
+  // Play pop sound when apples turn red (tapCount increases)
+  useEffect(() => {
+    if (tapCount > prevTapCountRef.current && tapCount <= target) {
+      playPopSound();
+    }
+    prevTapCountRef.current = tapCount;
+  }, [tapCount, target]);
 
   const startNewRound = () => {
     setTarget(prev => getNextTarget(prev));
@@ -157,14 +205,16 @@ export default function QuantitativeNumberGame() {
     setTapCount(nextCount);
 
     if (nextCount === target) {
-      setStatus('success');
-      setConfettiPieces(createConfettiPieces());
-      setBalloons(createBalloonSpecs());
-      playCelebrationSound();
-      setTimeout(startNewRound, 1200);
+      setTimeout(() => {
+        setStatus('success');
+        setConfettiPieces(createConfettiPieces());
+        setBalloons(createBalloonSpecs());
+        playCelebrationSound();
+      }, 400);
+      setTimeout(startNewRound, 2400);
     } else if (nextCount > target) {
       setStatus('too-many');
-      setTimeout(startNewRound, 900);
+      setTimeout(startNewRound, 1000);
     }
   };
 
@@ -228,7 +278,7 @@ export default function QuantitativeNumberGame() {
         )}
 
         <h1 className="text-center text-3xl sm:text-4xl font-bold text-indigo-700 mb-2 drop-shadow-md">
-          Alex&apos;s Number Game
+          Michael&apos;s Number Game
         </h1>
         <p className="text-center text-sm text-gray-600 mb-6">
           Look at the number. Tap the big button the same number of times!
